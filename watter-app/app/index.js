@@ -1,9 +1,9 @@
-import { View, Text, TextInput, Button } from "react-native";
+import { View, TextInput, TouchableOpacity, Text, Image } from "react-native";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { loginUser } from "../src/services/auth";
-import { globalStyles } from "../src/styles/globalStyles";
-import { colors } from "../src/styles/theme";
+import { LinearGradient } from 'expo-linear-gradient';
+
 
 export default function Login() {
   const router = useRouter();
@@ -20,47 +20,118 @@ export default function Login() {
     }
   };
 
-  return (
-    <View style={globalStyles.container}>
+return (
+  <LinearGradient
+    colors={["#9DB8DB", "#6FA3E8"]}
+    style={{
+      flex: 1,
+      justifyContent: "center",
+      paddingHorizontal: 20
+    }}
+  >
 
-      <Text style={globalStyles.title}>🔐 Login</Text>
+    {/* CARD */}
+    <View style={{
+      backgroundColor: "rgba(255,255,255,0.75)", // 🔥 transparência
+      padding: 20,
+      borderRadius: 25,
+      shadowColor: "#000",
+      shadowOpacity: 0.1,
+      shadowRadius: 10,
+      elevation: 5,
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.3)",
+    }}>
 
-      <TextInput
-        placeholder="Email"
-        placeholderTextColor="#aaa"
-        onChangeText={setEmail}
+      {/* LOGO DENTRO */}
+      <Image
+        source={require("../assets/images/logo.png")}
         style={{
-          backgroundColor: colors.card,
-          color: colors.text,
-          padding: 10,
-          borderRadius: 8,
-          marginBottom: 10
-        }}
-      />
-
-      <TextInput
-        placeholder="Senha"
-        placeholderTextColor="#aaa"
-        secureTextEntry
-        onChangeText={setPassword}
-        style={{
-          backgroundColor: colors.card,
-          color: colors.text,
-          padding: 10,
-          borderRadius: 8,
+          width: 300,
+          height: 140,
+          resizeMode: "contain",
+          alignSelf: "center",
           marginBottom: 20
         }}
       />
 
-      <View style={{ marginBottom: 10 }}>
-        <Button title="Entrar" onPress={handleLogin} />
-      </View>
+          {/* TEXTO */}
+    <Text style={{
+      textAlign: "center",
+      color: "#1C4A99",
+      marginBottom: 20,
+      fontSize: 16,
+      fontWeight: "500"
+    }}>
+      Hidrate-se melhor todos os dias
+    </Text>
 
-      <Button
-        title="Criar conta"
-        onPress={() => router.push("/register")}
+      {/* EMAIL */}
+      <TextInput
+        placeholder="Email"
+        placeholderTextColor="#555"
+        onChangeText={setEmail}
+        style={{
+          backgroundColor: "#fff",
+          padding: 14,
+          borderRadius: 16,
+          marginBottom: 12
+        }}
       />
 
+      {/* SENHA */}
+      <TextInput
+        placeholder="Senha"
+        placeholderTextColor="#555"
+        secureTextEntry
+        onChangeText={setPassword}
+        style={{
+          backgroundColor: "#fff",
+          padding: 14,
+          borderRadius: 16,
+          marginBottom: 20
+        }}
+      />
+
+      {/* BOTÃO ENTRAR */}
+      <TouchableOpacity
+        onPress={handleLogin}
+        style={{
+          backgroundColor: "#1C4A99",
+          padding: 16,
+          borderRadius: 16,
+          marginBottom: 10
+        }}
+      >
+        <Text style={{
+          color: "#fff",
+          textAlign: "center",
+          fontWeight: "bold"
+        }}>
+          ENTRAR
+        </Text>
+      </TouchableOpacity>
+
+      {/* BOTÃO CADASTRO */}
+      <TouchableOpacity
+        onPress={() => router.push("/register")}
+        style={{
+          backgroundColor: "#163B7A",
+          padding: 16,
+          borderRadius: 16
+        }}
+      >
+        <Text style={{
+          color: "#fff",
+          textAlign: "center",
+          fontWeight: "bold"
+        }}>
+          CRIAR CONTA
+        </Text>
+      </TouchableOpacity>
+
     </View>
-  );
+
+  </LinearGradient>
+);
 }

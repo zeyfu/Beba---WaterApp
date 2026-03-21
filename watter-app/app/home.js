@@ -1,7 +1,7 @@
-import { View, Text, Button } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView } from "react-native";
 import { useEffect, useState } from "react";
 import { auth } from "../src/services/auth";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import {
   getFirestore,
   doc,
@@ -15,9 +15,8 @@ import { app } from "../src/services/firebaseConfig";
 import { addWaterLog } from "../src/services/firestore";
 import { useRouter } from "expo-router";
 import * as Notifications from "expo-notifications";
-import { TextInput } from "react-native";
-import { globalStyles } from "../src/styles/globalStyles";
-import { colors } from "../src/styles/theme";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
 
 const db = getFirestore(app);
 
@@ -29,38 +28,25 @@ export default function Home() {
   const [customAmount, setCustomAmount] = useState("");
   const router = useRouter();
 
-  // 🔐 Observa autenticação
+  // 🔐 Auth
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUser(user);
-      } else {
-        router.push("/");
-      }
+      if (user) setUser(user);
+      else router.replace("/");
     });
-
     return unsubscribe;
   }, []);
 
-  //Permissão de notificação
+  // 🔔 Permissão
   useEffect(() => {
-  const requestPermission = async () => {
-    const { status } = await Notifications.requestPermissionsAsync();
+    Notifications.requestPermissionsAsync();
+  }, []);
 
-    if (status !== "granted") {
-      alert("Permissão de notificação negada");
-    }
-  };
-
-  requestPermission();
-}, [])
-
-  // 🔵 Buscar dados do usuário + consumo
+  // 📊 Dados
   useEffect(() => {
     if (!user) return;
 
     const fetchData = async () => {
-      // 🟢 Meta
       const docRef = doc(db, "users", user.uid);
       const docSnap = await getDoc(docRef);
 
@@ -68,7 +54,6 @@ export default function Home() {
         setGoal(docSnap.data().goal);
       }
 
-      // 🔵 Consumo de hoje
       const today = new Date().toISOString().split("T")[0];
 
       const q = query(
@@ -77,33 +62,27 @@ export default function Home() {
         where("date", "==", today)
       );
 
-      const querySnapshot = await getDocs(q);
+      const snapshot = await getDocs(q);
 
       let total = 0;
-
-      querySnapshot.forEach((doc) => {
+      snapshot.forEach((doc) => {
         total += doc.data().amount;
       });
 
       setWater(total);
 
-      // 🟣 Histórico
-      const qHistory = query(
+      // histórico
+      const historyQuery = query(
         collection(db, "waterLogs"),
         where("userId", "==", user.uid)
       );
 
-      const historySnapshot = await getDocs(qHistory);
+      const historySnap = await getDocs(historyQuery);
 
       const data = {};
-
-      historySnapshot.forEach((doc) => {
+      historySnap.forEach((doc) => {
         const { date, amount } = doc.data();
-
-        if (!data[date]) {
-          data[date] = 0;
-        }
-
+        if (!data[date]) data[date] = 0;
         data[date] += amount;
       });
 
@@ -112,153 +91,199 @@ export default function Home() {
         total
       }));
 
-      setHistory(historyArray);
+      setHistory(historyArray.reverse());
     };
 
     fetchData();
   }, [user]);
 
-  //Notificação
+  // 🔔 Notificação
   const scheduleNotification = async () => {
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: "Hora de beber água 💧",
-      body: "Não esqueça de se hidratar!"
-    },
-    trigger: {
-      seconds: 3600, // 1 hora
-      repeats: true
-    }
-  });
-};
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Hora de beber água 💧",
+        body: "Não esqueça de se hidratar!"
+      },
+      trigger: { seconds: 3600, repeats: true }
+    });
+  };
 
+  // 🚪 Logout
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.replace("/");
+  };
 
-  // 💧 Adicionar água
+  // 💧 +250
   const addWater = async () => {
     if (!user) return;
-
     setWater((prev) => prev + 250);
-
     await addWaterLog(user.uid, 250);
   };
 
-  //Adicionar água personalida
+  // 💧 custom
   const addCustomWater = async () => {
-  const amount = Number(customAmount);
+    const amount = Number(customAmount);
 
-  if (!amount || amount <= 0) {
-    alert("Digite um valor válido");
-    return;
-  }
+    if (!amount || amount <= 0) {
+      alert("Digite um valor válido");
+      return;
+    }
 
-  setWater((prev) => prev + amount);
+    setWater((prev) => prev + amount);
+    await addWaterLog(user.uid, amount);
+    setCustomAmount("");
+  };
 
-  await addWaterLog(user.uid, amount);
-
-  setCustomAmount("");
-};
-
-  // ⏳ Loading
   if (!user) {
-    return (
-      <View style={{ padding: 20 }}>
-        <Text>Carregando...</Text>
-      </View>
-    );
+    return <Text style={{ padding: 20 }}>Carregando...</Text>;
   }
 
   return (
-  <View style={{
-    flex: 1,
-    backgroundColor: "#0f172a",
-    padding: 20
-  }}>
+    <LinearGradient
+      colors={["#9DB8DB", "#6FA3E8"]}
+      style={{ flex: 1, paddingTop: 50, paddingHorizontal: 20 }}
+    >
 
-    <Text style={{
-      fontSize: 24,
-      color: "#fff",
-      marginBottom: 20,
-      fontWeight: "bold"
-    }}>
-      💧 Controle de Água
-    </Text>
-
-    {/* 📊 CARD PRINCIPAL */}
-    <View style={{
-      backgroundColor: "#1e293b",
-      padding: 15,
-      borderRadius: 10,
-      marginBottom: 15
-    }}>
-      <Text style={{ color: "#fff" }}>
-        Meta diária: {goal} ml
-      </Text>
-
-      <Text style={{ color: "#fff", marginTop: 5 }}>
-        Consumido hoje: {water} ml
-      </Text>
-    </View>
-
-    {/* 💧 BOTÃO PRINCIPAL */}
-    <View style={{ marginBottom: 10 }}>
-      <Button title="+250ml" onPress={addWater} />
-    </View>
-
-    {/* ✏️ INPUT PERSONALIZADO */}
-    <TextInput
-      placeholder="Quantidade (ml)"
-      placeholderTextColor="#aaa"
-      value={customAmount}
-      onChangeText={setCustomAmount}
-      keyboardType="numeric"
-      style={{
-        backgroundColor: "#1e293b",
-        color: "#fff",
-        borderRadius: 8,
-        padding: 10,
-        marginBottom: 10
-      }}
-    />
-
-    <View style={{ marginBottom: 10 }}>
-      <Button title="Adicionar quantidade" onPress={addCustomWater} />
-    </View>
-
-    {/* 🔔 NOTIFICAÇÃO */}
-    <View style={{ marginBottom: 10 }}>
-      <Button title="Ativar lembrete" onPress={scheduleNotification} />
-    </View>
-
-    {/* 👤 PERFIL */}
-    <View style={{ marginBottom: 10 }}>
-      <Button
-        title="Ir para Perfil"
-        onPress={() => router.push("/profile")}
-      />
-    </View>
-
-    {/* 📊 HISTÓRICO */}
-    <View style={{ marginTop: 10 }}>
-      <Text style={{
-        color: "#fff",
-        fontSize: 18,
-        marginBottom: 5
+      {/* TOPO */}
+      <View style={{
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 20
       }}>
-        Histórico
-      </Text>
+        <TouchableOpacity onPress={() => router.push("/profile")}>
+          <Ionicons name="person-circle" size={32} color="#1C4A99" />
+        </TouchableOpacity>
 
-      {history.map((item, index) => (
-        <Text key={index} style={{ color: "#cbd5f5" }}>
-          {item.date} - {item.total} ml
+        <TouchableOpacity onPress={scheduleNotification}>
+          <Ionicons name="notifications" size={28} color="#1C4A99" />
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={28} color="#1C4A99" />
+        </TouchableOpacity>
+      </View>
+
+      {/* CARD */}
+      <View style={{
+        backgroundColor: "rgba(255,255,255,0.9)",
+        borderRadius: 25,
+        padding: 20,
+        flex: 1
+      }}>
+
+        <Text style={{
+          fontSize: 22,
+          fontWeight: "bold",
+          color: "#1C4A99",
+          textAlign: "center",
+          marginBottom: 15
+        }}>
+          Controle de Hidratação 
         </Text>
-      ))}
-    </View>
 
-    {/* 🚪 LOGOUT */}
-    <View style={{ marginTop: 20 }}>
-      <Button title="Logout" onPress={() => router.push("/")} />
-    </View>
+        <Text style={{ color: "#1C4A99" }}>
+          Meta diária: {goal} ml
+        </Text>
 
-  </View>
-);
+        <Text style={{ color: "#1C4A99", marginBottom: 15 }}>
+          Consumido hoje: {water} ml
+        </Text>
+
+        <TouchableOpacity onPress={addWater} style={button}>
+          <Text style={buttonText}>+250 ml</Text>
+        </TouchableOpacity>
+
+        <TextInput
+          placeholder="Quantidade (ml)"
+          placeholderTextColor="#555"
+          value={customAmount}
+          onChangeText={setCustomAmount}
+          keyboardType="numeric"
+          style={input}
+        />
+
+        <TouchableOpacity onPress={addCustomWater} style={button}>
+          <Text style={buttonText}>Adicionar</Text>
+        </TouchableOpacity>
+
+        {/* HISTÓRICO */}
+        <Text style={{
+          marginTop: 20,
+          marginBottom: 10,
+          fontSize: 18,
+          color: "#1C4A99"
+        }}>
+          Histórico
+        </Text>
+
+        <ScrollView>
+          {history.map((item, index) => {
+            const bateuMeta = item.total >= goal;
+            const falta = goal - item.total;
+
+            const dataFormatada = new Date(item.date).toLocaleDateString("pt-BR", {
+              day: "2-digit",
+              month: "short"
+            });
+
+            return (
+              <View
+                key={index}
+                style={{
+                  backgroundColor: "#fff",
+                  padding: 15,
+                  borderRadius: 16,
+                  marginBottom: 10
+                }}
+              >
+                <Text style={{ color: "#1C4A99", fontWeight: "bold" }}>
+                  {dataFormatada}
+                </Text>
+
+                <Text style={{ color: "#334155", marginTop: 5 }}>
+                  {item.total} ml
+                </Text>
+
+                <Text
+                  style={{
+                    marginTop: 5,
+                    fontSize: 12,
+                    color: bateuMeta ? "green" : "red"
+                  }}
+                >
+                  {bateuMeta
+                    ? "Meta atingida 🎉"
+                    : `Faltaram ${falta} ml`}
+                </Text>
+              </View>
+            );
+          })}
+        </ScrollView>
+
+      </View>
+    </LinearGradient>
+  );
 }
+
+/* estilos */
+const input = {
+  backgroundColor: "#fff",
+  padding: 14,
+  borderRadius: 16,
+  marginBottom: 12
+};
+
+const button = {
+  backgroundColor: "#1C4A99",
+  padding: 16,
+  borderRadius: 16,
+  marginBottom: 10
+};
+
+const buttonText = {
+  color: "#fff",
+  textAlign: "center",
+  fontWeight: "bold"
+};

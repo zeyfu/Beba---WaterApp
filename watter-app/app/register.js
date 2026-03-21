@@ -1,10 +1,9 @@
-import { View, Text, TextInput, Button } from "react-native";
+import { View, Text, TextInput, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { registerUser } from "../src/services/auth";
 import { saveUserData } from "../src/services/firestore";
-import { globalStyles } from "../src/styles/globalStyles";
-import { colors } from "../src/styles/theme";
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function Register() {
   const router = useRouter();
@@ -37,84 +36,121 @@ export default function Register() {
   };
 
   return (
-    <View style={globalStyles.container}>
+    <LinearGradient
+      colors={["#9DB8DB", "#6FA3E8"]}
+      style={{
+        flex: 1,
+        justifyContent: "center",
+        paddingHorizontal: 20
+      }}
+    >
 
-      <Text style={globalStyles.title}>📝 Cadastro</Text>
+      {/* CARD */}
+      <View style={{
+        backgroundColor: "rgba(255,255,255,0.8)",
+        padding: 20,
+        borderRadius: 25,
+        shadowColor: "#000",
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 5
+      }}>
 
-      <TextInput
-        placeholder="Email"
-        placeholderTextColor="#aaa"
-        onChangeText={setEmail}
-        style={{
-          backgroundColor: colors.card,
-          color: colors.text,
-          padding: 10,
-          borderRadius: 8,
-          marginBottom: 10
-        }}
-      />
-
-      <TextInput
-        placeholder="Senha"
-        placeholderTextColor="#aaa"
-        secureTextEntry
-        onChangeText={setPassword}
-        style={{
-          backgroundColor: colors.card,
-          color: colors.text,
-          padding: 10,
-          borderRadius: 8,
-          marginBottom: 10
-        }}
-      />
-
-      <TextInput
-        placeholder="Peso (kg)"
-        placeholderTextColor="#aaa"
-        onChangeText={setWeight}
-        keyboardType="numeric"
-        style={{
-          backgroundColor: colors.card,
-          color: colors.text,
-          padding: 10,
-          borderRadius: 8,
-          marginBottom: 10
-        }}
-      />
-
-      <TextInput
-        placeholder="Idade"
-        placeholderTextColor="#aaa"
-        onChangeText={setAge}
-        keyboardType="numeric"
-        style={{
-          backgroundColor: colors.card,
-          color: colors.text,
-          padding: 10,
-          borderRadius: 8,
-          marginBottom: 10
-        }}
-      />
-
-      <TextInput
-        placeholder="Sexo (M/F)"
-        placeholderTextColor="#aaa"
-        onChangeText={setGender}
-        style={{
-          backgroundColor: colors.card,
-          color: colors.text,
-          padding: 10,
-          borderRadius: 8,
+        {/* TÍTULO */}
+        <Text style={{
+          fontSize: 22,
+          fontWeight: "bold",
+          color: "#1C4A99",
+          textAlign: "center",
           marginBottom: 20
-        }}
-      />
+        }}>
+          Criar Conta
+        </Text>
 
-      <View style={{ marginBottom: 10 }}>
-        <Button title="Cadastrar" onPress={handleRegister} />
+        {/* INPUTS */}
+        <TextInput
+          placeholder="Email"
+          placeholderTextColor="#555"
+          onChangeText={setEmail}
+          style={inputStyle}
+        />
+
+        <TextInput
+          placeholder="Senha"
+          placeholderTextColor="#555"
+          secureTextEntry
+          onChangeText={setPassword}
+          style={inputStyle}
+        />
+
+        <TextInput
+          placeholder="Peso (kg)"
+          placeholderTextColor="#555"
+          onChangeText={setWeight}
+          keyboardType="numeric"
+          style={inputStyle}
+        />
+
+        <TextInput
+          placeholder="Idade"
+          placeholderTextColor="#555"
+          onChangeText={setAge}
+          keyboardType="numeric"
+          style={inputStyle}
+        />
+
+        <TextInput
+          placeholder="Sexo (M/F)"
+          placeholderTextColor="#555"
+          onChangeText={setGender}
+          style={inputStyle}
+        />
+
+        {/* BOTÃO CADASTRAR */}
+        <TouchableOpacity
+          onPress={handleRegister}
+          style={buttonStyle}
+        >
+          <Text style={buttonText}>CADASTRAR</Text>
+        </TouchableOpacity>
+
+        {/* VOLTAR */}
+        <TouchableOpacity
+          onPress={() => router.push("/")}
+          style={{ marginTop: 10 }}
+        >
+          <Text style={{
+            textAlign: "center",
+            color: "#1C4A99",
+            fontWeight: "500"
+          }}>
+            Voltar
+          </Text>
+        </TouchableOpacity>
+
       </View>
 
-      <Button title="Voltar" onPress={() => router.push("/")} />
-
-    </View>
+    </LinearGradient>
   );
 }
+
+/* 🔧 estilos reutilizáveis */
+const inputStyle = {
+  backgroundColor: "#fff",
+  padding: 14,
+  borderRadius: 16,
+  marginBottom: 12
+};
+
+const buttonStyle = {
+  backgroundColor: "#1C4A99",
+  padding: 16,
+  borderRadius: 16,
+  marginTop: 10
+};
+
+const buttonText = {
+  color: "#fff",
+  textAlign: "center",
+  fontWeight: "bold"
+};
