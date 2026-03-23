@@ -1,4 +1,11 @@
-import { View, Text, TextInput, TouchableOpacity, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Modal
+} from "react-native";
 import { useEffect, useState } from "react";
 import { auth } from "../src/services/auth";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -26,7 +33,12 @@ export default function Home() {
   const [water, setWater] = useState(0);
   const [history, setHistory] = useState([]);
   const [customAmount, setCustomAmount] = useState("");
+  const [modalVisible, setModalVisible] = useState(false);
+
   const router = useRouter();
+
+  const progress = goal > 0 ? water / goal : 0;
+  const percentage = Math.min(progress * 100, 100);
 
   // 🔐 Auth
   useEffect(() => {
@@ -47,37 +59,26 @@ export default function Home() {
     if (!user) return;
 
     const fetchData = async () => {
-      const docRef = doc(db, "users", user.uid);
-      const docSnap = await getDoc(docRef);
-
-      if (docSnap.exists()) {
-        setGoal(docSnap.data().goal);
-      }
+      const docSnap = await getDoc(doc(db, "users", user.uid));
+      if (docSnap.exists()) setGoal(docSnap.data().goal);
 
       const today = new Date().toISOString().split("T")[0];
 
-      const q = query(
-        collection(db, "waterLogs"),
-        where("userId", "==", user.uid),
-        where("date", "==", today)
+      const snapshot = await getDocs(
+        query(
+          collection(db, "waterLogs"),
+          where("userId", "==", user.uid),
+          where("date", "==", today)
+        )
       );
-
-      const snapshot = await getDocs(q);
 
       let total = 0;
-      snapshot.forEach((doc) => {
-        total += doc.data().amount;
-      });
-
+      snapshot.forEach((doc) => (total += doc.data().amount));
       setWater(total);
 
-      // histórico
-      const historyQuery = query(
-        collection(db, "waterLogs"),
-        where("userId", "==", user.uid)
+      const historySnap = await getDocs(
+        query(collection(db, "waterLogs"), where("userId", "==", user.uid))
       );
-
-      const historySnap = await getDocs(historyQuery);
 
       const data = {};
       historySnap.forEach((doc) => {
@@ -86,12 +87,11 @@ export default function Home() {
         data[date] += amount;
       });
 
-      const historyArray = Object.entries(data).map(([date, total]) => ({
-        date,
-        total
-      }));
-
-      setHistory(historyArray.reverse());
+      setHistory(
+        Object.entries(data)
+          .map(([date, total]) => ({ date, total }))
+          .reverse()
+      );
     };
 
     fetchData();
@@ -114,176 +114,166 @@ export default function Home() {
     router.replace("/");
   };
 
-  // 💧 +250
-  const addWater = async () => {
+  // 💧 adicionar água
+  const addWaterAmount = async (amount) => {
     if (!user) return;
-    setWater((prev) => prev + 250);
-    await addWaterLog(user.uid, 250);
+
+    await addWaterLog(user.uid, amount);
+    setWater((prev) => prev + amount);
+    setModalVisible(false);
   };
 
-  // 💧 custom
   const addCustomWater = async () => {
+    if (!user) return;
+
     const amount = Number(customAmount);
+    if (!amount) return;
 
-    if (!amount || amount <= 0) {
-      alert("Digite um valor válido");
-      return;
-    }
-
-    setWater((prev) => prev + amount);
-    await addWaterLog(user.uid, amount);
+    await addWaterAmount(amount);
     setCustomAmount("");
   };
 
-  if (!user) {
-    return <Text style={{ padding: 20 }}>Carregando...</Text>;
-  }
+  if (!user) return <Text style={{ padding: 20 }}>Carregando...</Text>;
 
   return (
-    <LinearGradient
-      colors={["#9DB8DB", "#6FA3E8"]}
-      style={{ flex: 1, paddingTop: 50, paddingHorizontal: 20 }}
-    >
-
-      {/* TOPO */}
-      <View style={{
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 20
-      }}>
-        <TouchableOpacity onPress={() => router.push("/profile")}>
-          <Ionicons name="person-circle" size={32} color="#1C4A99" />
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={scheduleNotification}>
-          <Ionicons name="notifications" size={28} color="#1C4A99" />
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={28} color="#1C4A99" />
-        </TouchableOpacity>
-      </View>
-
-      {/* CARD */}
-      <View style={{
-        backgroundColor: "rgba(255,255,255,0.9)",
-        borderRadius: 25,
-        padding: 20,
-        flex: 1
-      }}>
-
-        <Text style={{
-          fontSize: 22,
-          fontWeight: "bold",
-          color: "#1C4A99",
-          textAlign: "center",
-          marginBottom: 15
+    <View style={{ flex: 1 }}>
+      <LinearGradient
+        colors={["#9DB8DB", "#6FA3E8"]}
+        style={{ flex: 1, paddingTop: 50, paddingHorizontal: 20 }}
+      >
+        {/* TOPO */}
+        <View style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          marginBottom: 20
         }}>
-          Controle de Hidratação 
-        </Text>
+          <Ionicons name="person-circle" size={32} color="#1C4A99" onPress={() => router.push("/profile")} />
+          <Ionicons name="notifications" size={28} color="#1C4A99" onPress={scheduleNotification} />
+          <Ionicons name="log-out-outline" size={28} color="#1C4A99" onPress={handleLogout} />
+        </View>
 
-        <Text style={{ color: "#1C4A99" }}>
-          Meta diária: {goal} ml
-        </Text>
-
-        <Text style={{ color: "#1C4A99", marginBottom: 15 }}>
-          Consumido hoje: {water} ml
-        </Text>
-
-        <TouchableOpacity onPress={addWater} style={button}>
-          <Text style={buttonText}>+250 ml</Text>
-        </TouchableOpacity>
-
-        <TextInput
-          placeholder="Quantidade (ml)"
-          placeholderTextColor="#555"
-          value={customAmount}
-          onChangeText={setCustomAmount}
-          keyboardType="numeric"
-          style={input}
-        />
-
-        <TouchableOpacity onPress={addCustomWater} style={button}>
-          <Text style={buttonText}>Adicionar</Text>
-        </TouchableOpacity>
-
-        {/* HISTÓRICO */}
-        <Text style={{
-          marginTop: 20,
-          marginBottom: 10,
-          fontSize: 18,
-          color: "#1C4A99"
+        {/* CARD */}
+        <View style={{
+          backgroundColor: "rgba(255,255,255,0.9)",
+          borderRadius: 25,
+          padding: 20,
+          flex: 1
         }}>
-          Histórico
-        </Text>
+          <Text style={title}>Controle de Hidratação</Text>
 
-        <ScrollView>
-          {history.map((item, index) => {
-            const bateuMeta = item.total >= goal;
-            const falta = goal - item.total;
+          <Text>Meta diária: {goal} ml</Text>
+          <Text>Consumido hoje: {water} ml</Text>
 
-            const dataFormatada = new Date(item.date).toLocaleDateString("pt-BR", {
-              day: "2-digit",
-              month: "short"
-            });
+          {/* BARRA */}
+          <View style={{ marginVertical: 15 }}>
+            <Text style={{ color: "#1C4A99", fontWeight: "bold" }}>
+              {percentage.toFixed(0)}% da meta
+            </Text>
 
-            return (
-              <View
-                key={index}
-                style={{
-                  backgroundColor: "#fff",
-                  padding: 15,
-                  borderRadius: 16,
-                  marginBottom: 10
-                }}
-              >
-                <Text style={{ color: "#1C4A99", fontWeight: "bold" }}>
-                  {dataFormatada}
-                </Text>
+            <View style={{
+              height: 12,
+              backgroundColor: "#e2e8f0",
+              borderRadius: 10,
+              overflow: "hidden",
+              marginTop: 5
+            }}>
+              <View style={{
+                width: `${percentage}%`,
+                height: "100%",
+                backgroundColor: percentage >= 100 ? "#16a34a" : "#1C4A99"
+              }} />
+            </View>
 
-                <Text style={{ color: "#334155", marginTop: 5 }}>
-                  {item.total} ml
-                </Text>
+            <Text style={{ marginTop: 5, fontSize: 12 }}>
+              {water >= goal
+                ? "Meta atingida 🎉"
+                : `Faltam ${goal - water} ml`}
+            </Text>
+          </View>
 
-                <Text
-                  style={{
-                    marginTop: 5,
-                    fontSize: 12,
-                    color: bateuMeta ? "green" : "red"
-                  }}
-                >
-                  {bateuMeta
-                    ? "Meta atingida 🎉"
-                    : `Faltaram ${falta} ml`}
-                </Text>
-              </View>
-            );
-          })}
-        </ScrollView>
+          <Text style={subtitle}>Histórico</Text>
 
-      </View>
-    </LinearGradient>
+          <ScrollView>
+            {history.map((item, index) => {
+              const bateuMeta = item.total >= goal;
+
+              return (
+                <View key={index} style={card}>
+                  <Text>{item.date}</Text>
+                  <Text>{item.total} ml</Text>
+                  <Text style={{ color: bateuMeta ? "green" : "red" }}>
+                    {bateuMeta ? "Meta atingida" : "Meta não atingida"}
+                  </Text>
+                </View>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </LinearGradient>
+
+      {/* BOTÃO + */}
+      <TouchableOpacity style={fab} onPress={() => setModalVisible(true)}>
+        <Text style={{ color: "#fff", fontSize: 30 }}>+</Text>
+      </TouchableOpacity>
+
+      {/* MODAL */}
+      <Modal visible={modalVisible} transparent animationType="slide">
+        <View style={modalOverlay}>
+          <View style={modal}>
+            {[200, 250, 500].map((amt) => (
+              <TouchableOpacity key={amt} style={button} onPress={() => addWaterAmount(amt)}>
+                <Text style={buttonText}>+{amt} ml</Text>
+              </TouchableOpacity>
+            ))}
+
+            <TextInput
+              placeholder="Quantidade personalizada"
+              value={customAmount}
+              onChangeText={setCustomAmount}
+              keyboardType="numeric"
+              style={input}
+            />
+
+            <TouchableOpacity style={button} onPress={addCustomWater}>
+              <Text style={buttonText}>Adicionar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <Text style={{ textAlign: "center" }}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 /* estilos */
-const input = {
-  backgroundColor: "#fff",
-  padding: 14,
-  borderRadius: 16,
-  marginBottom: 12
-};
-
-const button = {
+const title = { fontSize: 20, fontWeight: "bold", marginBottom: 10, color:"#1C4A99"};
+const subtitle = { marginTop: 15, fontWeight: "bold", color:"#1C4A99" };
+const card = { backgroundColor: "#fff", padding: 10, marginBottom: 10, borderRadius: 10 };
+const button = { backgroundColor: "#1C4A99", padding: 15, borderRadius: 10, marginBottom: 10 };
+const buttonText = { color: "#fff", textAlign: "center" };
+const input = { backgroundColor: "#fff", padding: 10, borderRadius: 10, marginBottom: 10 };
+const fab = {
+  position: "absolute",
+  bottom: 30,
+  right: 30,
   backgroundColor: "#1C4A99",
-  padding: 16,
-  borderRadius: 16,
-  marginBottom: 10
+  width: 60,
+  height: 60,
+  borderRadius: 30,
+  justifyContent: "center",
+  alignItems: "center"
 };
-
-const buttonText = {
-  color: "#fff",
-  textAlign: "center",
-  fontWeight: "bold"
+const modalOverlay = {
+  flex: 1,
+  backgroundColor: "rgba(0,0,0,0.4)",
+  justifyContent: "center",
+  padding: 20
+};
+const modal = {
+  backgroundColor: "#fff",
+  padding: 20,
+  borderRadius: 20
 };
