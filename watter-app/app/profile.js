@@ -9,6 +9,12 @@ import { getFirestore, doc, getDoc } from "firebase/firestore";
 import { app } from "../src/services/firebaseConfig";
 import { updateUserData } from "../src/services/firestore";
 
+// 🔔 notifications
+import {
+  getNotificationSettings,
+  saveNotificationSettings
+} from "../src/services/notifications";
+
 const db = getFirestore(app);
 
 export default function Profile() {
@@ -18,30 +24,39 @@ export default function Profile() {
   const [name, setName] = useState("");
   const [goal, setGoal] = useState("");
 
-  // 🔍 Buscar dados do usuário
+  // 🔔 notificações
+  const [interval, setIntervalState] = useState("3600");
+
+  // 🔍 Buscar dados
   useEffect(() => {
     const fetchUser = async () => {
       const user = auth.currentUser;
+      if (!user) return;
 
-      if (!user) return; // 👈 não redireciona aqui
-
+      // 👤 user
       const docRef = doc(db, "users", user.uid);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
         const data = docSnap.data();
-
         setUserData(data);
         setName(data.name || "");
         setGoal(String(data.goal || ""));
+      }
+
+      // 🔔 notifications
+      const notif = await getNotificationSettings(user.uid);
+
+      if (notif) {
+        setIntervalState(String(notif.interval));
       }
     };
 
     fetchUser();
   }, []);
 
-  // 💾 Salvar alterações
-  const handleSave = async () => {
+  // 💾 Salvar perfil
+  const handleSaveProfile = async () => {
     const user = auth.currentUser;
     if (!user) return;
 
@@ -52,12 +67,24 @@ export default function Profile() {
 
     alert("Perfil atualizado!");
 
-    // Atualiza na tela
     setUserData((prev) => ({
       ...prev,
       name,
       goal: Number(goal)
     }));
+  };
+
+  // 🔔 Salvar notificações
+  const handleSaveNotifications = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    await saveNotificationSettings(user.uid, {
+      enabled: true, // mantém ativo
+      interval: Number(interval)
+    });
+
+    alert("Configurações de notificação salvas!");
   };
 
   // 🚪 Logout
@@ -100,24 +127,14 @@ export default function Profile() {
           padding: 20
         }}
       >
-        <Text
-          style={{
-            fontSize: 22,
-            fontWeight: "bold",
-            color: "#1C4A99",
-            textAlign: "center",
-            marginBottom: 20
-          }}
-        >
-          👤 Perfil
-        </Text>
+        <Text style={title}>👤 Perfil</Text>
 
         <Text style={item}>Email: {userData.email}</Text>
         <Text style={item}>Peso: {userData.weight} kg</Text>
         <Text style={item}>Idade: {userData.age}</Text>
         <Text style={item}>Sexo: {userData.gender}</Text>
 
-        {/* EDITÁVEL */}
+        {/* PERFIL */}
         <Text style={label}>Nome</Text>
         <TextInput value={name} onChangeText={setName} style={input} />
 
@@ -129,10 +146,23 @@ export default function Profile() {
           style={input}
         />
 
-        <TouchableOpacity style={button} onPress={handleSave}>
-          <Text style={{ color: "#fff", textAlign: "center" }}>
-            Salvar
-          </Text>
+        <TouchableOpacity style={button} onPress={handleSaveProfile}>
+          <Text style={buttonText}>Salvar Perfil</Text>
+        </TouchableOpacity>
+
+        {/* 🔔 NOTIFICAÇÕES */}
+        <Text style={section}>🔔 Notificações</Text>
+
+        <Text style={label}>Intervalo (segundos)</Text>
+        <TextInput
+          value={interval}
+          onChangeText={setIntervalState}
+          keyboardType="numeric"
+          style={input}
+        />
+
+        <TouchableOpacity style={button} onPress={handleSaveNotifications}>
+          <Text style={buttonText}>Salvar Notificações</Text>
         </TouchableOpacity>
       </View>
     </LinearGradient>
@@ -140,6 +170,21 @@ export default function Profile() {
 }
 
 /* estilos */
+const title = {
+  fontSize: 22,
+  fontWeight: "bold",
+  color: "#1C4A99",
+  textAlign: "center",
+  marginBottom: 20
+};
+
+const section = {
+  marginTop: 20,
+  fontWeight: "bold",
+  color: "#1C4A99",
+  fontSize: 16
+};
+
 const item = {
   fontSize: 16,
   color: "#334155",
@@ -165,4 +210,9 @@ const button = {
   padding: 15,
   borderRadius: 10,
   marginTop: 10
+};
+
+const buttonText = {
+  color: "#fff",
+  textAlign: "center"
 };
