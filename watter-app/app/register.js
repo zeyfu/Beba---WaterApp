@@ -21,6 +21,7 @@ export default function Register() {
 
       await saveUserData(user.uid, {
         email: email,
+        name: "",
         weight: Number(weight),
         age: Number(age),
         gender: gender,

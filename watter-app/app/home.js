@@ -25,20 +25,23 @@ import * as Notifications from "expo-notifications";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
+// 🔥 clima
+import { getWeather, calculateGoal } from "../src/services/weather";
+
 const db = getFirestore(app);
 
 export default function Home() {
   const [user, setUser] = useState(null);
   const [goal, setGoal] = useState(0);
+  const [goalAdjusted, setGoalAdjusted] = useState(0);
+  const [temperature, setTemperature] = useState(null);
+
   const [water, setWater] = useState(0);
   const [history, setHistory] = useState([]);
   const [customAmount, setCustomAmount] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
 
   const router = useRouter();
-
-  const progress = goal > 0 ? water / goal : 0;
-  const percentage = Math.min(progress * 100, 100);
 
   // 🔐 Auth
   useEffect(() => {
@@ -54,14 +57,28 @@ export default function Home() {
     Notifications.requestPermissionsAsync();
   }, []);
 
-  // 📊 Dados
+  // 📊 Dados do usuário + consumo
   useEffect(() => {
     if (!user) return;
 
     const fetchData = async () => {
       const docSnap = await getDoc(doc(db, "users", user.uid));
-      if (docSnap.exists()) setGoal(docSnap.data().goal);
 
+      let userGoal = 2000;
+
+      if (docSnap.exists()) {
+        userGoal = docSnap.data().goal || 2000;
+        setGoal(userGoal);
+      }
+
+      // 🔥 clima
+      const temp = await getWeather();
+      setTemperature(temp);
+
+      const adjusted = calculateGoal(userGoal, temp);
+      setGoalAdjusted(adjusted);
+
+      // 📅 hoje
       const today = new Date().toISOString().split("T")[0];
 
       const snapshot = await getDocs(
@@ -76,6 +93,7 @@ export default function Home() {
       snapshot.forEach((doc) => (total += doc.data().amount));
       setWater(total);
 
+      // 📜 histórico
       const historySnap = await getDocs(
         query(collection(db, "waterLogs"), where("userId", "==", user.uid))
       );
@@ -133,6 +151,12 @@ export default function Home() {
     setCustomAmount("");
   };
 
+  // 🔥 usa meta ajustada
+  const currentGoal = goalAdjusted || goal;
+
+  const progress = currentGoal > 0 ? water / currentGoal : 0;
+  const percentage = Math.min(progress * 100, 100);
+
   if (!user) return <Text style={{ padding: 20 }}>Carregando...</Text>;
 
   return (
@@ -161,7 +185,18 @@ export default function Home() {
         }}>
           <Text style={title}>Controle de Hidratação</Text>
 
-          <Text>Meta diária: {goal} ml</Text>
+          {/* 🌡️ CLIMA */}
+          {temperature && (
+            <Text style={{ marginBottom: 5 }}>
+              🌡️ {temperature}°C
+            </Text>
+          )}
+
+          <Text>Meta base: {goal} ml</Text>
+          <Text style={{ fontWeight: "bold", color: "#1C4A99" }}>
+            Meta ajustada: {currentGoal} ml
+          </Text>
+
           <Text>Consumido hoje: {water} ml</Text>
 
           {/* BARRA */}
@@ -185,9 +220,9 @@ export default function Home() {
             </View>
 
             <Text style={{ marginTop: 5, fontSize: 12 }}>
-              {water >= goal
+              {water >= currentGoal
                 ? "Meta atingida 🎉"
-                : `Faltam ${goal - water} ml`}
+                : `Faltam ${currentGoal - water} ml`}
             </Text>
           </View>
 
@@ -195,7 +230,7 @@ export default function Home() {
 
           <ScrollView>
             {history.map((item, index) => {
-              const bateuMeta = item.total >= goal;
+              const bateuMeta = item.total >= currentGoal;
 
               return (
                 <View key={index} style={card}>
