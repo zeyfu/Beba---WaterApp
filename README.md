@@ -96,13 +96,17 @@ Perfil
 
 ▶️ Como executar o projeto
 1. Clonar o repositório
-git clone https://github.com/seu-usuario/water-app.git
+git clone https://github.com/zeyfu/WaterApp.git
+
 2. Acessar a pasta
-cd water-app
+cd watter-app
+
 3. Instalar dependências
 npm install
+
 4. Rodar o projeto
 npx expo start
+
 5. Executar no celular
 Instale o app Expo Go
 Escaneie o QR Code exibido no terminal
@@ -127,6 +131,7 @@ const firebaseConfig = {
 };
 
 export const app = initializeApp(firebaseConfig);
+
 📌 Status do projeto
 ✅ Etapa atual
 Interface completa (Login, Cadastro, Home, Perfil)
